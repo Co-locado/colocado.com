@@ -1,0 +1,197 @@
+openapi: 3.0.0
+info:
+  title: Co-Locado WhatsApp API
+  description: 'API de integração com o WhatsApp.'
+  version: 1.0.0
+servers:
+  - url: http://api.colocado.com:4002
+paths:
+  /v1/api/message:
+    post:
+      summary: Envia mensagem para o WhatsApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMessageV1'
+      responses:
+        '200':    # status code
+          description: A mensagem criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageV1'
+        '401':
+          description: Bearer Token Inválido. Confira a documentação principal para gerar seu Token.
+components:
+  schemas:
+    NewUserV1:
+      properties:
+        type:
+          type: string
+          enum: [User]
+        phone:
+          type: string
+    NewGroupV1:
+      properties:
+        type:
+          type: string
+          enum: [Group]
+        id:
+          type: string
+    NewMessageV1:
+      type: object
+      properties:
+        uniqueId:
+          description: Opcional. Identificador único para evitar duplicação de mensagem. Gerado automaticamente se não for fornecido.
+          type: string
+          nullable: true
+        parentUniqueId:
+          description: Opcional. Identificador da mensagem pai, para respostas.
+          type: string
+          nullable: true
+        chat:
+          description: Identificador da conversa. Se do tipo usuário, exige o telefone do usuário. Se do tipo grupo, exige o id do grupo.
+          oneOf:
+            - $ref: '#/components/schemas/NewUserV1'
+            - $ref: '#/components/schemas/NewGroupV1'
+        text:
+          description: Mensagem de texto. Opcional se houver uma mídia na mensagem.
+          type: string
+          nullable: true
+        media:
+          description: Mídia da mensagem. Opcional se houver um texto.
+          type: object
+          nullable: true
+          required:
+            - base64
+            - mime
+            - kind
+            - filename
+          properties:
+            base64:
+              description: Código base64 do conteúdo do arquivo de mídia.
+              type: string
+            mime:
+              description: Tipo MIME do conteúdo do arquivo de mídia.
+              type: string
+            kind:
+              description: Tipo da mídia.
+              type: string
+              enum: [Image, Video, Document, Audio, VCard]
+            filename:
+              description: Nome do arquivo de mídia.
+              type: string
+      required:
+        - chat
+    WebhookMessageV1:
+      $ref: '#/components/schemas/MessageV1'
+      properties:
+        kind:
+          description: Tipo do conteúdo
+          type: string
+          enum: [MessageV1]
+    WebhookPayload:
+      description: Conteúdo da requisição, especifico de cada `kind`
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/WebhookMessageV1'
+    MessageV1:
+      type: object
+      properties:
+        uniqueId:
+          description: Identificador único da mensagem.
+          type: string
+        parentUniqueId:
+          description: Identificador único da mensagem pai.
+          type: string
+          nullable: true
+        chat:
+          description: Identificador único da conversa.
+          type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum: [User, Group]
+            phone:
+              type: string
+            id:
+              type: string
+        sender:
+          description: Metadados sobre quem enviou a mensagem
+          type: object
+          required:
+            - id
+            - name
+            - avatarUrl
+            - kind
+            - createdAt
+          properties:
+            id:
+              description: Identificador único de quem enviou a mensagem
+              type: string
+            name:
+              description: Nome de quem enviou a mensagem
+              type: string
+            avatarUrl:
+              description: Avatar de quem enviou a mensagem
+              type: string
+            phone:
+              description: Telefone de quem enviou a mensagem
+              type: string
+              nullable: true
+            kind:
+              description: Tipo de usuário. Robô, Atendente ou Contato Externo
+              type: string
+              enum: [Bot, User, Contact]
+        text:
+          description: Mensagem de texto. Opcional se houver uma mídia na mensagem.
+          type: string
+          nullable: true
+        event:
+          description: Mensagem de evento. Como notificação de ligação por WhatsApp. Opcional se houver uma mídia na mensagem.
+          type: string
+          nullable: true
+        media:
+          description: Mídia da mensagem. Opcional se houver um texto.
+          type: object
+          nullable: true
+          required:
+            - url
+            - kind
+            - mime
+            - filename
+          properties:
+            url:
+              description: URL da mídia associada à mensagem.
+              type: string
+            mime:
+              description: Tipo MIME do conteúdo do arquivo de mídia.
+              type: string
+            kind:
+              description: Tipo da mídia.
+              type: string
+              enum: [Image, Video, Document, Audio, VCard]
+            filename:
+              description: Nome do arquivo de mídia.
+              type: string
+        edited:
+          description: Determina se a mensagem foi editada no WhatsApp ou não.
+          type: boolean
+        externalCreatedAt:
+          description: Data de criação da mensagem no WhatsApp.
+          type: string
+          nullable: true
+      required:
+        - uniqueId
+        - edited
+        - chat
+        - sender
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - bearerAuth: []
